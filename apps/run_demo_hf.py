@@ -2,10 +2,10 @@ import argparse
 
 import gradio as gr
 import torch
-from lavis.models import load_model_and_preprocess
+from transformers import AutoProcessor, Blip2ForConditionalGeneration
 
 
-def gradio_demo(args):
+def gradio_demo():
     image_input = gr.Image(type='pil')
 
     min_len = gr.Slider(
@@ -25,14 +25,6 @@ def gradio_demo(args):
         interactive=True,
         label='Max Length',
     )
-
-    sampling = gr.Radio(
-        choices=['Beam search', 'Nucleus sampling'],
-        value='Beam search',
-        label='Text Decoding Method',
-        interactive=True,
-    )
-
     top_p = gr.Slider(
         minimum=0.5,
         maximum=1.0,
@@ -73,48 +65,42 @@ def gradio_demo(args):
 
     device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
     print('Loading model...')
-    model, vis_processors, _ = load_model_and_preprocess(
-        name=args.model_name,
-        model_type=args.model_type,
-        is_eval=True,
-        device=device,
-    )
+    processor = AutoProcessor.from_pretrained('Salesforce/blip2-opt-2.7b')
+    model = Blip2ForConditionalGeneration.from_pretrained(
+        'Salesforce/blip2-opt-2.7b', torch_dtype=torch.float16)
+
     print('Loading model done!')
 
     def inference(image, prompt, min_len, max_len, beam_size, len_penalty,
-                  repetition_penalty, top_p, decoding_method, modeltype):
-        use_nucleus_sampling = decoding_method == 'Nucleus sampling'
-        print(image, prompt, min_len, max_len, beam_size, len_penalty,
-              repetition_penalty, top_p, use_nucleus_sampling)
-        image = vis_processors['eval'](image).unsqueeze(0).to(device)
+                  repetition_penalty, top_p):
 
-        samples = {
-            'image': image,
-            'prompt': prompt,
-        }
+        inputs = processor(image, text=prompt,
+                           return_tensors='pt').to(device, torch.float16)
 
-        output = model.generate(
-            samples,
-            length_penalty=float(len_penalty),
-            repetition_penalty=float(repetition_penalty),
-            num_beams=beam_size,
-            max_length=max_len,
-            min_length=min_len,
-            top_p=top_p,
-            use_nucleus_sampling=use_nucleus_sampling,
-        )
+        generated_ids = model.generate(**inputs,
+                                       length_penalty=float(len_penalty),
+                                       repetition_penalty=float(
+                                           repetition_penalty),
+                                       num_beams=beam_size,
+                                       max_length=max_len,
+                                       min_length=min_len,
+                                       top_p=top_p,
+                                       max_new_tokens=20)
+        generated_text = processor.batch_decode(
+            generated_ids, skip_special_tokens=True)[0].strip()
 
-        return output[0]
+        return generated_text
 
-    gr.Interface(
+    demo = gr.Interface(
         fn=inference,
         inputs=[
             image_input, prompt_textbox, min_len, max_len, beam_size,
-            len_penalty, repetition_penalty, top_p, sampling
+            len_penalty, repetition_penalty, top_p
         ],
         outputs='text',
         allow_flagging='never',
-    ).launch()
+    )
+    demo.launch()
 
 
 if __name__ == '__main__':
@@ -122,4 +108,4 @@ if __name__ == '__main__':
     parser.add_argument('--model-name', default='blip2_vicuna_instruct')
     parser.add_argument('--model-type', default='vicuna7b')
     args = parser.parse_args()
-    gradio_demo(args)
+    gradio_demo()
