@@ -4,46 +4,7 @@ import gradio as gr
 import torch
 from lavis.models import load_model_and_preprocess
 
-
-def main():
-
-    device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
-    print('Loading model...')
-    model, vis_processors, _ = load_model_and_preprocess(
-        name=args.model_name,
-        model_type=args.model_type,
-        is_eval=True,
-        device=device,
-    )
-    print('Loading model done!')
-
-    def inference(image, prompt, min_len, max_len, beam_size, len_penalty,
-                  repetition_penalty, top_p, decoding_method, modeltype):
-        use_nucleus_sampling = decoding_method == 'Nucleus sampling'
-        print(image, prompt, min_len, max_len, beam_size, len_penalty,
-              repetition_penalty, top_p, use_nucleus_sampling)
-        image = vis_processors['eval'](image).unsqueeze(0).to(device)
-
-        samples = {
-            'image': image,
-            'prompt': prompt,
-        }
-
-        output = model.generate(
-            samples,
-            length_penalty=float(len_penalty),
-            repetition_penalty=float(repetition_penalty),
-            num_beams=beam_size,
-            max_length=max_len,
-            min_length=min_len,
-            top_p=top_p,
-            use_nucleus_sampling=use_nucleus_sampling,
-        )
-
-        return output[0]
-
-
-def gradio_demo():
+def gradio_demo(args):
     image_input = gr.Image(type='pil')
 
     min_len = gr.Slider(
@@ -109,6 +70,41 @@ def gradio_demo():
 
     prompt_textbox = gr.Textbox(label='Prompt:', placeholder='prompt', lines=2)
 
+    device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
+    print('Loading model...')
+    model, vis_processors, _ = load_model_and_preprocess(
+        name=args.model_name,
+        model_type=args.model_type,
+        is_eval=True,
+        device=device,
+    )
+    print('Loading model done!')
+
+    def inference(image, prompt, min_len, max_len, beam_size, len_penalty,
+                  repetition_penalty, top_p, decoding_method, modeltype):
+        use_nucleus_sampling = decoding_method == 'Nucleus sampling'
+        print(image, prompt, min_len, max_len, beam_size, len_penalty,
+              repetition_penalty, top_p, use_nucleus_sampling)
+        image = vis_processors['eval'](image).unsqueeze(0).to(device)
+
+        samples = {
+            'image': image,
+            'prompt': prompt,
+        }
+
+        output = model.generate(
+            samples,
+            length_penalty=float(len_penalty),
+            repetition_penalty=float(repetition_penalty),
+            num_beams=beam_size,
+            max_length=max_len,
+            min_length=min_len,
+            top_p=top_p,
+            use_nucleus_sampling=use_nucleus_sampling,
+        )
+
+        return output[0]
+    
     gr.Interface(
         fn=inference,
         inputs=[
@@ -125,3 +121,4 @@ if __name__ == '__main__':
     parser.add_argument('--model-name', default='blip2_vicuna_instruct')
     parser.add_argument('--model-type', default='vicuna7b')
     args = parser.parse_args()
+    gradio_demo(args)
