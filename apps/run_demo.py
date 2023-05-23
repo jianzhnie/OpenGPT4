@@ -1,16 +1,13 @@
-import gradio as gr
-from lavis.models import load_model_and_preprocess
-import torch
 import argparse
 
-
-
-
+import gradio as gr
+import torch
+from lavis.models import load_model_and_preprocess
 
 
 def main():
 
-    device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
+    device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
     print('Loading model...')
     model, vis_processors, _ = load_model_and_preprocess(
         name=args.model_name,
@@ -20,14 +17,16 @@ def main():
     )
     print('Loading model done!')
 
-    def inference(image, prompt, min_len, max_len, beam_size, len_penalty, repetition_penalty, top_p, decoding_method, modeltype):
-        use_nucleus_sampling = decoding_method == "Nucleus sampling"
-        print(image, prompt, min_len, max_len, beam_size, len_penalty, repetition_penalty, top_p, use_nucleus_sampling)
-        image = vis_processors["eval"](image).unsqueeze(0).to(device)
+    def inference(image, prompt, min_len, max_len, beam_size, len_penalty,
+                  repetition_penalty, top_p, decoding_method, modeltype):
+        use_nucleus_sampling = decoding_method == 'Nucleus sampling'
+        print(image, prompt, min_len, max_len, beam_size, len_penalty,
+              repetition_penalty, top_p, use_nucleus_sampling)
+        image = vis_processors['eval'](image).unsqueeze(0).to(device)
 
         samples = {
-            "image": image,
-            "prompt": prompt,
+            'image': image,
+            'prompt': prompt,
         }
 
         output = model.generate(
@@ -45,7 +44,7 @@ def main():
 
 
 def gradio_demo():
-    image_input = gr.Image(type="pil")
+    image_input = gr.Image(type='pil')
 
     min_len = gr.Slider(
         minimum=1,
@@ -53,7 +52,7 @@ def gradio_demo():
         value=1,
         step=1,
         interactive=True,
-        label="Min Length",
+        label='Min Length',
     )
 
     max_len = gr.Slider(
@@ -62,13 +61,13 @@ def gradio_demo():
         value=250,
         step=5,
         interactive=True,
-        label="Max Length",
+        label='Max Length',
     )
 
     sampling = gr.Radio(
-        choices=["Beam search", "Nucleus sampling"],
-        value="Beam search",
-        label="Text Decoding Method",
+        choices=['Beam search', 'Nucleus sampling'],
+        value='Beam search',
+        label='Text Decoding Method',
         interactive=True,
     )
 
@@ -78,7 +77,7 @@ def gradio_demo():
         value=0.9,
         step=0.1,
         interactive=True,
-        label="Top p",
+        label='Top p',
     )
 
     beam_size = gr.Slider(
@@ -87,7 +86,7 @@ def gradio_demo():
         value=5,
         step=1,
         interactive=True,
-        label="Beam Size",
+        label='Beam Size',
     )
 
     len_penalty = gr.Slider(
@@ -96,7 +95,7 @@ def gradio_demo():
         value=1,
         step=0.2,
         interactive=True,
-        label="Length Penalty",
+        label='Length Penalty',
     )
 
     repetition_penalty = gr.Slider(
@@ -105,25 +104,24 @@ def gradio_demo():
         value=1,
         step=0.2,
         interactive=True,
-        label="Repetition Penalty",
+        label='Repetition Penalty',
     )
 
-
-    prompt_textbox = gr.Textbox(label="Prompt:", placeholder="prompt", lines=2)
-
-
+    prompt_textbox = gr.Textbox(label='Prompt:', placeholder='prompt', lines=2)
 
     gr.Interface(
         fn=inference,
-        inputs=[image_input, prompt_textbox, min_len, max_len, beam_size, len_penalty, repetition_penalty, top_p, sampling],
-        outputs="text",
-        allow_flagging="never",
+        inputs=[
+            image_input, prompt_textbox, min_len, max_len, beam_size,
+            len_penalty, repetition_penalty, top_p, sampling
+        ],
+        outputs='text',
+        allow_flagging='never',
     ).launch()
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Demo")
-    parser.add_argument("--model-name", default="blip2_vicuna_instruct")
-    parser.add_argument("--model-type", default="vicuna7b")
+    parser = argparse.ArgumentParser(description='Demo')
+    parser.add_argument('--model-name', default='blip2_vicuna_instruct')
+    parser.add_argument('--model-type', default='vicuna7b')
     args = parser.parse_args()
-
